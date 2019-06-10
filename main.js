@@ -1,13 +1,21 @@
 let crypto = require('crypto-js/sha256');
 
+//Criando classe de Transação
+class Transaction{
+    constructor(fromAddress, toAddress, amount){
+        this.fromAddress = fromAddress;
+        this.toAddress = toAddress;
+        this.amount = amount;
+    }
+
+}
 
 // Criando Bloco
 class Block{
-    constructor(index, timestamp, data, previousHash = ''){
-        this.index = index;
-        this.timestamp = timestamp;
-        this.data = data;
+    constructor(timestamp, transactions, previousHash = ''){
         this.previousHash = previousHash;
+        this.timestamp = timestamp;
+        this.transactions = transactions;
         this.hash = this.calcHash();
         this.nonce = 0;
     }
@@ -34,6 +42,8 @@ class Blockchain{
     constructor(){
         this.chain = [this.createGenesisBlock()];
         this.difficulty = 4;
+        this.pendingTransactions =[];
+        this.miningReward = 100;
     }
 
     //Criando o Bloco Genesis (Primeiro bloco de um Blockchain)
@@ -46,11 +56,57 @@ class Blockchain{
         return this.chain[this.chain.length -1]; 
     }
     
-    //Metodo para adicionar um novo bloco a cadeia de blocos (Blockchain)
+    // Metodo para adicionar um novo bloco a cadeia de blocos (Blockchain)
     addBlock(newBlock){
         newBlock.previousHash = this.getLastBlock().hash;
         newBlock.minBlock(this.difficulty);
         this.chain.push(newBlock);
+    }
+
+    // Minerando a solicitação de transição
+    minePendingTransactions(miningRewardAddress){
+        // Instancio um novo bloco passando o horario atual e as informações da transação
+        let block = new Block(Date.now(), this.pendingTransactions);
+
+        // Faço a crianção do Hash para este bloco
+        block.minBlock(this.difficulty);
+
+        // Adiciono o novo bloco na cadeia (Blockchain)
+        console.log('Block successfully mind !');
+        this.chain.push(block);
+
+        // Passa o objeto da transação para o Blockchain
+        this.pendingTransactions = [
+            new Transaction(null, miningRewardAddress, this.miningReward)
+        ];
+    }
+
+    // Metodo para criar nova transação
+    createTransaction(transaction){
+        this.pendingTransactions.push(transaction);
+    }
+
+    // Metodo para obter o saldo 
+    getBalanceOfAddress(address){
+        let balance = 0;
+
+        // For para acessar cada bloco existente no blockchain
+        for (const block of this.chain){
+
+            // For para acessar cada transação de um bloco
+            for(const trans of block.transactions){
+
+                //Comparando os remetentes
+                if(trans.fromAddress === address){
+                    balance -= trans.amount;
+                }
+                
+                if(trans.toAddress === address){
+                    balance += trans.amount;
+                }
+            }
+        }
+        return balance;
     }
 
     //Metodo para validar os blocos do Blockchain
@@ -73,13 +129,15 @@ class Blockchain{
 //Instaciando um novo Blockchain
 let save = new Blockchain();
 
-//Adionando bloco no Blockchain
-console.log('Mining block 1...');
-save.addBlock(new Block(1, "01/01/2019", "Dados do primeiro bloco"));
+save.createTransaction(new Transaction('address1', "address2", 100));
+save.createTransaction(new Transaction('address2', "address1", 50));
 
-console.log('Mining block 2...');
-save.addBlock(new Block(2, "10/01/2019", "Dados do segundo bloco"));
+console.log('\n Starting the miner...');
+save.minePendingTransactions('xaviers-address');
 
-//Resultado do validador dos blocos
-console.log("O blockchain é valido? \n" + save.isChainValid());
-console.log(JSON.stringify(save, null, 5));
+console.log(`\nBalance of Xavier is `, save.getBalanceOfAddress('xaviers-address'));
+
+console.log('\n Starting the miner again...');
+save.minePendingTransactions('xaviers-address');
+
+console.log(`\nBalance of Xavier is `, save.getBalanceOfAddress('xaviers-address'));
